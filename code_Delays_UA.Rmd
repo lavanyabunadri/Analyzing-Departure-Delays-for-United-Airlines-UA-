@@ -1,0 +1,400 @@
+---
+title: "Project_5300"
+author: "LAVANYA B"
+output: html_document
+---
+
+```{r}
+#Time of day
+
+library(nycflights13)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+
+# Load flight data
+flights_data <- nycflights13::flights
+
+# Filter for United Airlines (UA) flights
+ua_flights_data <- flights_data %>%
+  filter(carrier == "UA")
+
+# Create a new variable "time_of_day"
+ua_flights_data <- ua_flights_data %>%
+  mutate(
+    time_of_day = case_when(
+      dep_time < 600 ~ "Night",
+      dep_time < 1200 ~ "Morning",
+      dep_time < 1800 ~ "Afternoon",
+      TRUE ~ "Evening"
+    )
+  )
+
+
+time_slots <- c("Morning", "Afternoon", "Evening", "Night")
+
+# Initialize a list to store results
+results_list <- list()
+
+# Create box plots to visualize departure delays by time of day for UA flights
+ggplot(ua_flights_data, aes(x = time_of_day, y = dep_delay)) +
+  geom_boxplot() +
+  labs(title = "UA Departure Delays by Time of Day", x = "Time of Day", y = "Departure Delay (minutes)")
+
+# Permutation Test for each pair of time slots
+for (i in 1:length(time_slots)) {
+  slot1 <- time_slots[i]
+  slot2 <- time_slots[(i %% length(time_slots)) + 1]  # Next time slot in a circular fashion
+  
+  cat("Permutation Test between", slot1, "and", slot2, ":\n")
+  
+  data1 <- ua_flights_data$dep_delay[ua_flights_data$time_of_day == slot1]
+  data2 <- ua_flights_data$dep_delay[ua_flights_data$time_of_day == slot2]
+
+  data1 <- data1[!is.na(data1)]
+  data2 <- data2[!is.na(data2)]
+
+  # Calculate the observed difference in means
+  observed_diff <- mean(data1) - mean(data2)
+
+  # Number of permutations
+  N <- 10000 - 1
+
+  sample.size <- length(data1)
+
+ 
+  group.1.size <- length(data1)
+
+  # Create a blank vector to store the simulation results
+  result <- numeric(N)
+
+  for (j in 1:N) {
+ 
+    index <- sample(sample.size, size = group.1.size, replace = FALSE)
+
+    mean1 <- mean(data1[index])
+    mean2 <- mean(data2[-index])
+    result[j] <- mean1 - mean2
+  }
+
+  # Calculate the p-value, ensuring it's not "NA"
+  pvalue <- (sum(result >= observed_diff) + 1) / (N + 1)
+  pvalue <- ifelse(is.na(pvalue), 1 / (N + 1), pvalue)
+
+  cat("Observed Difference in Means:", observed_diff, "\n")
+  if (!is.na(pvalue)) {
+    cat("P-value:", pvalue, "\n\n")
+  } else {
+    cat("P-value: (NA - Omitted)\n\n")
+  }
+
+  # Store results in the list
+  results_list[[paste(slot1, slot2, sep = "_")]] <- list(
+    observed_diff = observed_diff,
+    pvalue = pvalue
+  )
+}
+
+
+```
+
+```{r}
+#Time of year
+
+library(nycflights13)
+library(tidyverse)
+library(ggplot2)
+
+# Load flight data
+flights_data <- nycflights13::flights
+
+# Filter for United Airlines (UA) flights
+ua_flights_data <- flights_data %>%
+  filter(carrier == "UA")
+
+# Create a new variable "time_of_year" based on the month
+ua_flights_data <- ua_flights_data %>%
+  mutate(
+    time_of_year = case_when(
+      month %in% c(12, 1, 2) ~ "Winter",
+      month %in% c(3, 4, 5) ~ "Spring",
+      month %in% c(6, 7, 8) ~ "Summer",
+      month %in% c(9, 10, 11) ~ "Fall",
+      TRUE ~ "Unknown"
+    )
+  )
+
+# Define the seasons
+seasons <- c("Winter", "Spring", "Summer", "Fall")
+
+results_list <- list()
+
+# Create box plot to visualize departure delays by time of year for UA flights
+ggplot(ua_flights_data, aes(x = time_of_year, y = dep_delay)) +
+  geom_boxplot() +
+  labs(title = "UA Departure Delays by Time of Year", x = "Time of Year", y = "Departure Delay (minutes)")
+
+
+# Permutation Test for each pair of seasons
+for (i in 1:length(seasons)) {
+  season1 <- seasons[i]
+  season2 <- seasons[(i %% length(seasons)) + 1]  # Next season in a circular fashion
+  
+  cat("Permutation Test between", season1, "and", season2, ":\n")
+  
+  # Get the data for the two seasons
+  data1 <- ua_flights_data$dep_delay[ua_flights_data$time_of_year == season1]
+  data2 <- ua_flights_data$dep_delay[ua_flights_data$time_of_year == season2]
+
+  # Omit "NA" values from data
+  data1 <- data1[!is.na(data1)]
+  data2 <- data2[!is.na(data2)]
+
+  # Calculate the observed difference in means
+  observed_diff <- mean(data1) - mean(data2)
+
+  # Number of permutations
+  N <- 10000 - 1
+
+  # Sample size (number of observations in our sample)
+  sample.size <- length(data1)
+
+  # Group sizes (number of observations in the two groups)
+  group.1.size <- length(data1)
+
+  # Create a blank vector to store the simulation results
+  result <- numeric(N)
+
+  # Use a for loop to cycle through values of i ranging from 1 to N
+  for (j in 1:N) {
+    # Randomly permute the indices to split the data into two groups
+    index <- sample(sample.size, size = group.1.size, replace = FALSE)
+
+    # Calculate the difference in means for the two groups
+    mean1 <- mean(data1[index])
+    mean2 <- mean(data2[-index])
+    result[j] <- mean1 - mean2
+  }
+
+  # Calculate the p-value, ensuring it's not "NA"
+  pvalue <- (sum(result <= observed_diff) + 1) / (N + 1)
+  pvalue <- ifelse(is.na(pvalue), 1 / (N + 1), pvalue)
+  
+  # Print results and omit "NA" values
+  cat("Observed Difference in Means:", observed_diff, "\n")
+  if (!is.na(pvalue)) {
+    cat("P-value:", pvalue, "\n\n")
+  } else {
+    cat("P-value: (NA - Omitted)\n\n")
+  }
+
+  # Store results in the list
+  results_list[[paste(season1, season2, sep = "_")]] <- list(
+    observed_diff = observed_diff,
+    pvalue = pvalue
+  )
+}
+
+
+```
+
+
+
+```{r}
+# temperature
+
+library(nycflights13)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+
+# Load flight data
+flights_data <- nycflights13::flights
+
+# Filter for United Airlines (UA) flights
+ua_flights_data <- flights_data %>%
+  filter(carrier == "UA")
+
+# Load weather data
+weather_data <- nycflights13::weather
+
+ggplot(ua_flights_weather, aes(x = temp, y = dep_delay)) +
+  geom_point(color = "blue") +
+  labs(title = "Departure Delays vs. temperature for UA", x = "temp (F)", y = "Departure Delay (minutes)")
+
+
+# Merge flight data with weather data based on the year, month, day, and hour
+ua_flights_weather <- merge(ua_flights_data, weather_data, by = c("year", "month", "day", "hour"))
+
+# Filter and select relevant columns (departure delay and temperature), omitting NA values
+filtered_data <- ua_flights_weather %>%
+  filter(!is.na(dep_delay), !is.na(temp)) %>%
+  select(dep_delay, temp)
+
+# Calculate observed correlation
+observed_correlation <- cor(filtered_data$temp, filtered_data$dep_delay)
+
+N <- 1000
+permutation_result <- numeric(N)
+
+for (i in 1:N) {
+  temp_permuted <- sample(filtered_data$temp)
+  permutation_result[i] <- cor(temp_permuted, filtered_data$dep_delay)
+}
+
+p_value <- 2*(sum(permutation_result >= observed_correlation) + 1) / (N + 1)
+p_value <- ifelse(is.na(p_value), 1 / (N + 1), p_value)
+
+cat('Observed Correlation:', observed_correlation, '\n')
+cat('P-value:', p_value, '\n')
+
+
+
+```
+
+
+
+
+```{r}
+#windspeed
+
+library(nycflights13)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+
+# Load flight data
+flights_data <- nycflights13::flights
+
+# Filter for United Airlines (UA) flights
+ua_flights_data <- flights_data %>%
+  filter(carrier == "UA")
+
+# Load weather data
+weather_data <- nycflights13::weather
+
+# Merge flight data with weather data based on the year, month, day, and hour
+ua_flights_weather <- merge(ua_flights_data, weather_data, by = c("year", "month", "day", "hour"))
+
+# EDA: Create a scatter plot of departure delays vs. wind speed
+ggplot(ua_flights_weather, aes(x = wind_speed, y = dep_delay)) +
+  geom_point(color = "blue") +
+  labs(title = "Departure Delays vs. Wind Speed for UA", x = "Wind Speed", y = "Departure Delay")
+
+# Calculate the observed correlation
+observed_correlation <- cor(ua_flights_weather$wind_speed, ua_flights_weather$dep_delay, use = 'complete.obs')
+cat('Observed Correlation:', observed_correlation, '\n')
+
+# Perform a permutation test to assess significance
+N <- 1000  # Number of permutations
+permutation_result <- numeric(N)
+
+for (i in 1:N) {
+  wind_speed_permuted <- sample(ua_flights_weather$wind_speed)
+  permutation_result[i] <- cor(wind_speed_permuted, ua_flights_weather$dep_delay, use = 'complete.obs')
+}
+
+p_value <- 2*(sum(permutation_result >= observed_correlation) + 1) / (N + 1)
+p_value <- ifelse(is.na(p_value), 1 / (N + 1), p_value)
+
+cat('P-value:', p_value, '\n')
+
+```
+
+
+```{r}
+#Precipitation
+
+library(nycflights13)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+
+# Load flight data
+flights_data <- nycflights13::flights
+
+# Filter for United Airlines (UA) flights
+ua_flights_data <- flights_data %>%
+  filter(carrier == "UA")
+
+# Load weather data
+weather_data <- nycflights13::weather
+
+# Merge flight data with weather data based on the year, month, day, and hour
+ua_flights_weather <- merge(ua_flights_data, weather_data, by = c("year", "month", "day", "hour"))
+
+# EDA: Create a scatter plot of departure delays vs. precipitation
+ggplot(ua_flights_weather, aes(x = precip, y = dep_delay)) +
+  geom_point(color = "blue") +
+  labs(title = "Departure Delays vs. Precipitation for UA", x = "Precipitation", y = "Departure Delay ")
+
+# Calculate the observed correlation between departure delays and precipitation
+observed_correlation <- cor(ua_flights_weather$precip, ua_flights_weather$dep_delay, use = 'complete.obs')
+cat('Observed Correlation:', observed_correlation, '\n')
+
+# Perform a permutation test to assess significance
+N <- 1000  # Number of permutations
+permutation_result <- numeric(N)
+
+for (i in 1:N) {
+  precipitation_permuted <- sample(ua_flights_weather$precip)
+  permutation_result[i] <- cor(precipitation_permuted, ua_flights_weather$dep_delay, use = 'complete.obs')
+}
+
+p_value <- 2*(sum(permutation_result >= observed_correlation) + 1) / (N + 1)
+p_value <- ifelse(is.na(p_value), 1 / (N + 1), p_value)
+
+cat('P-value:', p_value, '\n')
+
+```
+```{r}
+#visibility
+
+library(nycflights13)
+library(dplyr)
+
+# Load flight data
+flights_data <- nycflights13::flights
+
+# Filter for United Airlines (UA) flights
+ua_flights_data <- flights_data %>%
+  filter(carrier == "UA")
+
+# Filter data to include only positive dep_delay values
+ua_flights_data <- ua_flights_data %>%
+  filter(dep_delay >= 0)
+
+# Load weather data
+weather_data <- nycflights13::weather
+
+# Merge flight data with weather data based on the year, month, day, and hour
+ua_flights_weather <- merge(ua_flights_data, weather_data, by = c("year", "month", "day", "hour"))
+
+ggplot(ua_flights_weather, aes(x = visib, y = dep_delay)) +
+  geom_point(color = "blue") +
+  labs(title = "Departure Delays vs. Visibility for UA", x = "Visibility", y = "Departure Delay ")
+
+
+# Calculate the observed correlation between departure delays and visibility
+observed_correlation <- cor(ua_flights_weather$visib, ua_flights_weather$dep_delay, use = 'complete.obs')
+cat('Observed Correlation:', observed_correlation, '\n')
+
+# Perform a permutation test to assess significance
+N <- 1000  # Number of permutations
+permutation_result <- numeric(N)
+
+for (i in 1:N) {
+  visibility_permuted <- sample(ua_flights_weather$visib)
+  permutation_result[i] <- cor(visibility_permuted, ua_flights_weather$dep_delay, use = 'complete.obs')
+}
+
+p_value <- 2*(sum(permutation_result <= observed_correlation) + 1) / (N + 1)
+p_value <- ifelse(is.na(p_value), 1 / (N + 1), p_value)
+
+cat('P-value:', p_value, '\n')
+
+```
+
+
+
+
